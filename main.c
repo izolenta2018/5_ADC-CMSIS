@@ -20,6 +20,8 @@ int main()
 	uint32_t i, temp;
 	uint8_t command;
 	
+	uint32_t ADC_value, ADC_result, step= ;
+	
 	RCC->AHBENR|=RCC_AHBENR_GPIOBEN; //LED blue and green
 	RCC->AHBENR|=RCC_AHBENR_GPIOAEN; //ADC, MCO, USART 
 	
@@ -58,8 +60,11 @@ int main()
 	GPIOA->AFR[0]|=((GPIO_AFRL_AFRL2 & (0x00000007<<8))|(GPIO_AFRL_AFRL3 & (0x00000007<<8))); //PA2, PA3 AF7
 	
 	//ADC config
-	ADC1->CR1=~ADC_CR1_RES|~ADC_CR1_SCAN; //res 12 bit, scan mode disabled
-	ADC1->CR2=ADC_CR2_CONT|~ADC_CR2_ALIGN|ADC_CR2_ADON; //continuous conv mode, right alignment
+	ADC1->SMPR3 &= ADC_SMPR3_SMP1; //write when ADON=0
+	ADC1->CR1 &= (~ADC_CR1_RES)|ADC_CR1_SCAN; //res 12 bit, scan mode enabled
+	ADC1->CR2 |= (ADC_CR2_CONT|ADC_CR2_ADON) & (~ADC_CR2_ALIGN); //continuous conv mode, right alignment, ADC on
+	ADC1->JSQR &= ~ADC_JSQR_JL&(~ADC_JSQR_JSQ4_0); //1 conversion, 1 channel
+	ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC
 	
 	
 	  //USART config
@@ -83,30 +88,19 @@ int main()
 		SendUSART((uint8_t *)"|_____________________________| \n\r");
     
 while(1)
-{   /*    
-	  USART2->DR = 'p';
-	  for (i=0;i<300000;++i) {};
-		USART2->DR = 'r';
-		for (i=0;i<300000;++i) {};
-		USART2->DR = 'i';
-		for (i=0;i<300000;++i) {};
-		USART2->DR = 'v';
-		for (i=0;i<300000;++i) {};
-		USART2->DR = 'e';
-		for (i=0;i<300000;++i) {};	
-		USART2->DR = 't';
-		for (i=0;i<300000;++i) {};
-	  */
-	
+{   
+	  if  (ADC1->SR & ADC_SR_JEOC)
+		{			
+	  ADC_value = ADC1->JDR4;
+	  ADC_result = ADC_value * step;
+	  }
+		
 	  for (i=0;i<3000000;++i) {};
     temp=USART2->DR;
     if 	(temp=='1')
     {
     GPIOB->ODR|=GPIO_ODR_ODR_6;  
-		}	
-  
-	
-	
+		}		
 	
 	command = TakeUSART();
 			switch(command)
@@ -128,13 +122,7 @@ while(1)
 				  SendUSART((uint8_t *)"Led blue OFF \n\r");	
 				break;
 			}
-			
-/*	
-GPIOB->ODR=0;
-for (i=0;i<3000000;++i) {};
-GPIOB->ODR=GPIO_ODR_ODR_6|GPIO_ODR_ODR_7;
-for (i=0;i<3000000;++i) {};
-*/
+
 }		
 	
 }
