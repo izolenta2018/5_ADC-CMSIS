@@ -18,9 +18,10 @@ void LED_BLUE_OFF  (void);
 int main()
 {
 	uint32_t i, temp;
-	uint8_t command;
+	uint8_t command, n[4];
+	uint8_t *ptr = n;
 	
-	uint32_t ADC_value, ADC_result, step= ;
+	uint32_t ADC_value, ADC_result, a;
 	
 	RCC->AHBENR|=RCC_AHBENR_GPIOBEN; //LED blue and green
 	RCC->AHBENR|=RCC_AHBENR_GPIOAEN; //ADC, MCO, USART 
@@ -57,7 +58,7 @@ int main()
   GPIOA->OTYPER|=0; //push-pull 
 	GPIOA->PUPDR|=~GPIO_PUPDR_PUPDR2|~GPIO_PUPDR_PUPDR3;// no pull
 	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR2|GPIO_OSPEEDER_OSPEEDR3; // High Speed 
-	GPIOA->AFR[0]|=((GPIO_AFRL_AFRL2 & (0x00000007<<8))|(GPIO_AFRL_AFRL3 & (0x00000007<<8))); //PA2, PA3 AF7
+	GPIOA->AFR[0]|=((GPIO_AFRL_AFRL2 & (0x00000007<<8))|(GPIO_AFRL_AFRL3 & (0x00000007<<12))); //PA2, PA3 AF7
 	
 	//ADC config
 	ADC1->SMPR3 &= ADC_SMPR3_SMP1; //write when ADON=0
@@ -89,18 +90,34 @@ int main()
     
 while(1)
 {   
+	 
+    	
+	
 	  if  (ADC1->SR & ADC_SR_JEOC)
 		{			
 	  ADC_value = ADC1->JDR4;
-	  ADC_result = ADC_value * step;
+	  ADC_result = ADC_value * 3000/4095;
 	  }
 		
-	  for (i=0;i<3000000;++i) {};
-    temp=USART2->DR;
-    if 	(temp=='1')
-    {
-    GPIOB->ODR|=GPIO_ODR_ODR_6;  
-		}		
+		
+    a=ADC_result/1000;        //7
+    n[0]=a;  //???????? ??? ????? 7
+    ADC_result%=1000;         //748
+
+    a=ADC_result/100;        //7
+    n[1]=a; //???????? ??? ????? 7
+    ADC_result%=100;         //48
+
+    a=ADC_result/10;         //4
+    n[2]=a; //???????? ??? ????? 4
+
+    a=ADC_result%10;         //8
+    n[3]=a; //???????? ??? ????? 8
+	
+	 while(!(USART2->SR & USART_SR_TC)); //Би?готовности передатчик?
+		USART2->DR ='5'; //n[0];	//Записать данные ?регист?передачи
+		
+	
 	
 	command = TakeUSART();
 			switch(command)
@@ -157,7 +174,7 @@ void LED_GREEN_ON (void)
 
 void LED_GREEN_OFF (void)
 {
-	GPIOB->ODR|=GPIO_ODR_ODR_7&(~GPIO_ODR_ODR_7);
+	GPIOB->BSRRH|=GPIO_BSRR_BS_7; //reset PB7 to low level
 }
 
 void LED_BLUE_ON (void)
@@ -167,7 +184,7 @@ void LED_BLUE_ON (void)
 
 void LED_BLUE_OFF (void)
 {
-	GPIOB->ODR|=GPIO_ODR_ODR_6&(~GPIO_ODR_ODR_6);
+	GPIOB->BSRRH|=GPIO_BSRR_BS_6; ////reset PB6 to low level
 }
 
 
