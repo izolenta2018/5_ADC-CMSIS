@@ -18,10 +18,24 @@ void LED_BLUE_OFF  (void);
 int main()
 {
 	uint32_t i, temp;
-	uint8_t command, n[4];
-	uint8_t *ptr = n;
+	uint8_t command;
+	
 	
 	uint32_t ADC_value, ADC_result, a;
+	
+	uint32_t n[10] = 
+{
+  '0', //0
+  '1', //1
+  '2', //2
+  '3', //3   
+  '4', //4
+  '5', //5 
+  '6', //6
+  '7', //7   
+  '8', //8
+  '9'  //9    
+};
 	
 	RCC->AHBENR|=RCC_AHBENR_GPIOBEN; //LED blue and green
 	RCC->AHBENR|=RCC_AHBENR_GPIOAEN; //ADC, MCO, USART 
@@ -36,46 +50,62 @@ int main()
 	
 	//ADC clocks
 	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;
-	
-	//ADC init
-	GPIOA->MODER |=GPIO_MODER_MODER1; // analog
-	
-	//LED init
+			
+	//GPIO LED init
 	GPIOB->MODER|=GPIO_MODER_MODER6_0|GPIO_MODER_MODER7_0; // PB7=01, PB6=01 output
   GPIOB->OTYPER|=0; //push-pull 
 	GPIOB->OSPEEDR|=0; // Low Speed 
 	GPIOB->PUPDR|=GPIO_PUPDR_PUPDR6_1|GPIO_PUPDR_PUPDR7_1;// pull-down
 	
-	//MCO init
+	//GPIO MCO init
 	GPIOA->MODER|=GPIO_MODER_MODER8_1; //PA8=10 AF
   GPIOA->OTYPER|=0; //push-pull 
 	GPIOA->PUPDR|=~GPIO_PUPDR_PUPDR8;// no pull
 	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR8; // High Speed 
 	GPIOA->AFR[1]|=(GPIO_AFRH_AFRH8>>4);
 	
-	//GPIO usart init
+	//GPIO USART init
 	GPIOA->MODER|=GPIO_MODER_MODER2_1|GPIO_MODER_MODER3_1; //PA2=10, PA3=10 AF
   GPIOA->OTYPER|=0; //push-pull 
 	GPIOA->PUPDR|=~GPIO_PUPDR_PUPDR2|~GPIO_PUPDR_PUPDR3;// no pull
 	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR2|GPIO_OSPEEDER_OSPEEDR3; // High Speed 
 	GPIOA->AFR[0]|=((GPIO_AFRL_AFRL2 & (0x00000007<<8))|(GPIO_AFRL_AFRL3 & (0x00000007<<12))); //PA2, PA3 AF7
+		
+	//USART config
+	USART2->CR1 |= USART_CR1_UE; //Включени?USART
+  USART2->CR1 |= USART_CR1_M;  // 8 би?данных
+  USART2->CR2 &=~ USART_CR2_STOP; //Один стоповый би?
+  USART2->BRR =0x8b  ;//0x8B; APBCLK/BAUDRATE // Скорость 115200 бо?
+	USART2->CR1 &=~ USART_CR1_PCE; //Запретит?би?четности
+  USART2->CR1 |= USART_CR1_TE; //Включить предатчи?USART
+  USART2->CR1 |= USART_CR1_RE; //Включить приемник USART
+	
+	//GPIO ADC init
+	GPIOA->MODER |=GPIO_MODER_MODER1; // analog
 	
 	//ADC config
 	ADC1->SMPR3 &= ADC_SMPR3_SMP1; //write when ADON=0
-	ADC1->CR1 &= (~ADC_CR1_RES)|ADC_CR1_SCAN; //res 12 bit, scan mode enabled
-	ADC1->CR2 |= (ADC_CR2_CONT|ADC_CR2_ADON) & (~ADC_CR2_ALIGN); //continuous conv mode, right alignment, ADC on
-	ADC1->JSQR &= ~ADC_JSQR_JL&(~ADC_JSQR_JSQ4_0); //1 conversion, 1 channel
-	ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC
+	ADC1->CR1 &= ~ADC_CR1_RES; //res 12 bit, scan mode enabled
+	//ADC1->CR1 |= ADC_CR1_SCAN; //res 12 bit, scan mode enabled
+	ADC1->CR1 &= ~ADC_CR1_SCAN; //res 12 bit, scan mode disabled
+	
+	ADC1->CR2 &= ~ADC_CR2_CONT; //single conv mode, right alignment, ADC on
+	ADC1->CR2 |= ADC_CR2_ADON; //single conv mode, right alignment, ADC on
+	//ADC1->CR2 |= ADC_CR2_ALIGN; //single conv mode, left alignment, ADC on
+	ADC1->CR2 &= ~ADC_CR2_ALIGN; //single conv mode, right alignment, ADC on
 	
 	
-	  //USART config
-		USART2->CR1 |= USART_CR1_UE; //Включени?USART
-    USART2->CR1 |= USART_CR1_M;  // 8 би?данных
-    USART2->CR2 &=~ USART_CR2_STOP; //Один стоповый би?
-    USART2->BRR =0x8b  ;//0x8B; APBCLK/BAUDRATE // Скорость 115200 бо?
-		USART2->CR1 &=~ USART_CR1_PCE; //Запретит?би?четности
-    USART2->CR1 |= USART_CR1_TE; //Включить предатчи?USART
-    USART2->CR1 |= USART_CR1_RE; //Включить приемник USART
+	ADC1->CR2 &= ~ADC_CR2_CFG; //bank A 
+	//ADC1->CR2 |= ADC_CR2_CFG; //bank B 
+	
+	//ADC1->JSQR &= ~ADC_JSQR_JL; //1 conversion, 1 channel
+	//ADC1->JSQR |= ADC_JSQR_JSQ1_0; //1 conversion, 1 channel
+	//ADC1->CR2|= ADC_CR2_JSWSTART; //start ADC
+	
+	ADC1->SQR1 &= ~ADC_SQR1_L; //1 conversion, 1 channel
+	ADC1->SQR5 |= ADC_SQR5_SQ1_0; //1 conversion, 1 channel
+	ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC
+	
 		
 		
   	// \n - Переместит?позици?печати на одну строку вниз
@@ -90,17 +120,33 @@ int main()
     
 while(1)
 {   
-	 
-    	
 	
-	  if  (ADC1->SR & ADC_SR_JEOC)
+	//ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC
+	ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC
+	 for (i=0;i<50000;++i) {};
+    //ADC_value = ADC1->JDR1;
+	  //ADC_result = (ADC_value * 3000)/4095;
+	  
+	  //if  (ADC1->SR & ADC_SR_JEOC)
+		//{			
+	 // ADC_value = ADC1->JDR4;
+	 // ADC_result = (ADC_value * 3000)/4095;
+	//  }
+	
+		/*
+		if  (ADC1->SR & ADC_SR_JEOC)
 		{			
-	  ADC_value = ADC1->JDR4;
-	  ADC_result = ADC_value * 3000/4095;
+	  ADC_value = ADC1->DR;
+	  ADC_result = (ADC_value * 3000)/4095;
 	  }
+		*/
+		ADC_value = ADC1->DR;
+	  ADC_result = (ADC_value * 3000)/4095;
 		
 		
     a=ADC_result/1000;        //7
+	
+		/*
     n[0]=a;  //???????? ??? ????? 7
     ADC_result%=1000;         //748
 
@@ -113,9 +159,11 @@ while(1)
 
     a=ADC_result%10;         //8
     n[3]=a; //???????? ??? ????? 8
-	
-	 while(!(USART2->SR & USART_SR_TC)); //Би?готовности передатчик?
-		USART2->DR ='5'; //n[0];	//Записать данные ?регист?передачи
+	*/
+	  for (i=0;i<50000;++i) {};
+	// while(!(USART2->SR & USART_SR_TC)); //Би?готовности передатчик?
+		USART2->DR =n[a];	//Записать данные ?регист?передачи
+		
 		
 	
 	
