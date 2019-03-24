@@ -1,4 +1,8 @@
 #include "stm32l1xx.h"
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include "stdio.h"
 #define APBCLK   16000000UL
 #define BAUDRATE 115200UL
 
@@ -22,6 +26,7 @@ int main()
 	
 	
 	uint32_t ADC_value, ADC_result, a;
+  uint8_t b=0;
 	
 	uint32_t n[10] = 
 {
@@ -72,13 +77,13 @@ int main()
 	GPIOA->AFR[0]|=((GPIO_AFRL_AFRL2 & (0x00000007<<8))|(GPIO_AFRL_AFRL3 & (0x00000007<<12))); //PA2, PA3 AF7
 		
 	//USART config
-	USART2->CR1 |= USART_CR1_UE; //Включени?USART
-  USART2->CR1 |= USART_CR1_M;  // 8 би?данных
-  USART2->CR2 &=~ USART_CR2_STOP; //Один стоповый би?
-  USART2->BRR =0x8b  ;//0x8B; APBCLK/BAUDRATE // Скорость 115200 бо?
-	USART2->CR1 &=~ USART_CR1_PCE; //Запретит?би?четности
-  USART2->CR1 |= USART_CR1_TE; //Включить предатчи?USART
-  USART2->CR1 |= USART_CR1_RE; //Включить приемник USART
+	USART2->CR1 |= USART_CR1_UE; //USART on
+  USART2->CR1 |= USART_CR1_M;  // 8 bit
+  USART2->CR2 &=~ USART_CR2_STOP; //1 stop bit
+  USART2->BRR =0x8b ; //APBCLK/BAUDRATE // 115200 baud
+	USART2->CR1 &=~ USART_CR1_PCE; // parity bit disabled
+  USART2->CR1 |= USART_CR1_TE; // USART transmitter  on 
+  USART2->CR1 |= USART_CR1_RE; //USART receiver on
 	
 	//GPIO ADC init
 	GPIOA->MODER |=GPIO_MODER_MODER1; // analog
@@ -90,29 +95,32 @@ int main()
 	ADC1->CR1 &= ~ADC_CR1_SCAN; //res 12 bit, scan mode disabled
 	
 	ADC1->CR2 &= ~ADC_CR2_CONT; //single conv mode, right alignment, ADC on
+	//ADC1->CR2 |=ADC_CR2_CONT; //continuous conv mode, right alignment, ADC on
+	
 	ADC1->CR2 |= ADC_CR2_ADON; //single conv mode, right alignment, ADC on
-	//ADC1->CR2 |= ADC_CR2_ALIGN; //single conv mode, left alignment, ADC on
 	ADC1->CR2 &= ~ADC_CR2_ALIGN; //single conv mode, right alignment, ADC on
 	
 	
 	ADC1->CR2 &= ~ADC_CR2_CFG; //bank A 
 	//ADC1->CR2 |= ADC_CR2_CFG; //bank B 
 	
-	//ADC1->JSQR &= ~ADC_JSQR_JL; //1 conversion, 1 channel
-	//ADC1->JSQR |= ADC_JSQR_JSQ1_0; //1 conversion, 1 channel
-	//ADC1->CR2|= ADC_CR2_JSWSTART; //start ADC
 	
+	ADC1->JSQR &= ~ADC_JSQR_JL; //1 conversion, 1 channel
+	ADC1->JSQR |= ADC_JSQR_JSQ4_0; //1 conversion, 1 channel
+	
+	
+	/*
 	ADC1->SQR1 &= ~ADC_SQR1_L; //1 conversion, 1 channel
 	ADC1->SQR5 |= ADC_SQR5_SQ1_0; //1 conversion, 1 channel
-	ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC
-	
+	*/
 		
 		
-  	// \n - Переместит?позици?печати на одну строку вниз
-		// \r - Переместит?позици?печати ?лево?крайне?подожени?
+  	// \n - РїРµСЂРµРјРµСЃС‚РёС‚СЊ РєСѓСЂСЃРѕСЂ РЅР° СЃС‚СЂРѕРєСѓ РІРЅРёР· 
+		// \r - РїРµСЂРµРјРµСЃС‚РёС‚СЊ РєСѓСЂСЃРѕСЂ РІ РєСЂР°Р№РЅРµРµ Р»РµРІРѕРµ РїРѕР»РѕР¶РµРЅРёРµ
+		
 		SendUSART((uint8_t *)" _____________________________  \n\r");
 		SendUSART((uint8_t *)"|                             | \n\r");
-    SendUSART((uint8_t *)"|   Developed by Yalaletdinov | \n\r");
+    SendUSART((uint8_t *)"|   Developed1123 by Yalaletdinov | \n\r");
 		SendUSART((uint8_t *)"|_____________________________| \n\r");
 		SendUSART((uint8_t *)"|                             | \n\r");
     SendUSART((uint8_t *)"|STM32l152RCT6 ready for work | \n\r");
@@ -121,51 +129,64 @@ int main()
 while(1)
 {   
 	
-	//ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC
-	ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC
+	ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC
+	//ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC
 	 for (i=0;i<50000;++i) {};
-    //ADC_value = ADC1->JDR1;
-	  //ADC_result = (ADC_value * 3000)/4095;
+    
 	  
-	  //if  (ADC1->SR & ADC_SR_JEOC)
-		//{			
-	 // ADC_value = ADC1->JDR4;
-	 // ADC_result = (ADC_value * 3000)/4095;
-	//  }
+	  if  (ADC1->SR & ADC_SR_JEOC)
+		{			
+	  ADC_value = ADC1->JDR1;
+	  ADC_result = (ADC_value * 3000)/4095;
+	  }
+		
 	
 		/*
-		if  (ADC1->SR & ADC_SR_JEOC)
+		if  (ADC1->SR & ADC_SR_EOC)
 		{			
 	  ADC_value = ADC1->DR;
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
 		*/
-		ADC_value = ADC1->DR;
-	  ADC_result = (ADC_value * 3000)/4095;
-		
-		
-    a=ADC_result/1000;        //7
-	
 		/*
-    n[0]=a;  //???????? ??? ????? 7
-    ADC_result%=1000;         //748
+		// Decomposition of number a=7964
+		a=ADC_result/1000;        //7
+    ADC_result%=1000;        //964
+    
+		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
+		USART2->DR =n[a];	//write data
+		
+    a=ADC_result/100;          //9
+    ADC_result%=100;          //64
+		
+		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
+		USART2->DR =n[a];	//write data
 
-    a=ADC_result/100;        //7
-    n[1]=a; //???????? ??? ????? 7
-    ADC_result%=100;         //48
+    a=ADC_result/10;           //6
+		
+		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
+		USART2->DR =n[a];	//write data
 
-    a=ADC_result/10;         //4
-    n[2]=a; //???????? ??? ????? 4
-
-    a=ADC_result%10;         //8
-    n[3]=a; //???????? ??? ????? 8
-	*/
-	  for (i=0;i<50000;++i) {};
-	// while(!(USART2->SR & USART_SR_TC)); //Би?готовности передатчик?
-		USART2->DR =n[a];	//Записать данные ?регист?передачи
+    a=ADC_result%10;         //4
+		
+		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
+		USART2->DR =n[a];	//write data
+		*/
+		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
+		USART2->DR =51;	//write data
 		
 		
+		//b=1564;
 	
+	 //if (i>=4)  
+	  //while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
+		
+		//USART2->DR =n[b];	//write data
+		
+		//++b;
+		//if (b>=4) b=0;
+		
+	for (i=0;i<5000000;++i) {};
 	
 	command = TakeUSART();
 			switch(command)
@@ -197,8 +218,8 @@ void SendUSART (uint8_t *text)
 {
 	while(*text)
 	{
-		while(!(USART2->SR & USART_SR_TC)); //Би?готовности передатчик?
-		USART2->DR = *text;	//Записать данные ?регист?передачи
+		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
+		USART2->DR = *text;	//write data
 		text++;		
 	}
 }
@@ -207,9 +228,9 @@ uint8_t TakeUSART (void)
 {
 	uint8_t data;
 	
-	if (USART2->SR & USART_SR_RXNE) //Би?устанавливается ?1, когд?регист?RDR поло?(пришли данные)
+	if (USART2->SR & USART_SR_RXNE) //Received data is ready to be read
 		{
-			data = USART2->DR; //Считат?данные из регистра приема
+			data = USART2->DR; //read data
 		}
 		
 		return data;
