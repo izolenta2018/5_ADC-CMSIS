@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "stdio.h"
+
 #define APBCLK   16000000UL
 #define BAUDRATE 115200UL
 
@@ -27,8 +27,10 @@ int main()
 	
 	uint32_t ADC_value, ADC_result, a;
   uint8_t b=0;
+	char txt_buf[150];
 	
-	uint32_t n[10] = 
+	
+	uint32_t n[11] = 
 {
   '0', //0
   '1', //1
@@ -39,9 +41,11 @@ int main()
   '6', //6
   '7', //7   
   '8', //8
-  '9'  //9    
+  '9',  //9  
+  'x'
 };
 	
+
 	RCC->AHBENR|=RCC_AHBENR_GPIOBEN; //LED blue and green
 	RCC->AHBENR|=RCC_AHBENR_GPIOAEN; //ADC, MCO, USART 
 	
@@ -120,18 +124,18 @@ int main()
 		
 		SendUSART((uint8_t *)" _____________________________  \n\r");
 		SendUSART((uint8_t *)"|                             | \n\r");
-    SendUSART((uint8_t *)"|   Developed1123 by Yalaletdinov | \n\r");
+    SendUSART((uint8_t *)"|   Developed by Yalaletdinov | \n\r");
 		SendUSART((uint8_t *)"|_____________________________| \n\r");
 		SendUSART((uint8_t *)"|                             | \n\r");
     SendUSART((uint8_t *)"|STM32l152RCT6 ready for work | \n\r");
 		SendUSART((uint8_t *)"|_____________________________| \n\r");
-    
+    SendUSART((uint8_t *)"Чтобы обновить напряжение на PA1 нажмите R \n\r");
 while(1)
 {   
 	
 	ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC
 	//ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC
-	 for (i=0;i<50000;++i) {};
+	 //for (i=0;i<500000;++i) {};
     
 	  
 	  if  (ADC1->SR & ADC_SR_JEOC)
@@ -140,14 +144,16 @@ while(1)
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
 		
+		sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
+		//SendUSART ((uint8_t*) txt_buf);
 	
-		/*
+		
 		if  (ADC1->SR & ADC_SR_EOC)
 		{			
 	  ADC_value = ADC1->DR;
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
-		*/
+		
 		/*
 		// Decomposition of number a=7964
 		a=ADC_result/1000;        //7
@@ -168,25 +174,9 @@ while(1)
 		USART2->DR =n[a];	//write data
 
     a=ADC_result%10;         //4
-		
-		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
-		USART2->DR =n[a];	//write data
 		*/
-		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
-		USART2->DR =51;	//write data
-		
-		
-		//b=1564;
 	
-	 //if (i>=4)  
-	  //while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
-		
-		//USART2->DR =n[b];	//write data
-		
-		//++b;
-		//if (b>=4) b=0;
-		
-	for (i=0;i<5000000;++i) {};
+	//for (i=0;i<50000;++i) {};
 	
 	command = TakeUSART();
 			switch(command)
@@ -206,6 +196,12 @@ while(1)
 				case led_blue_off:
 					LED_BLUE_OFF();
 				  SendUSART((uint8_t *)"Led blue OFF \n\r");	
+				break;
+				case 'r':
+				SendUSART ((uint8_t*) txt_buf); 
+				break;
+				case 'R':
+				SendUSART ((uint8_t*) txt_buf); 
 				break;
 			}
 
