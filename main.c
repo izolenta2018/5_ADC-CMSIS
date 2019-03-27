@@ -25,10 +25,10 @@ int main()
 	uint8_t command;
 	
 	
-	uint32_t ADC_value, ADC_result, a;
+	uint32_t ADC_value, ADC_result, a, DAC_result;
   uint8_t b=0;
 	char txt_buf[150];
-	
+	char DAC_buf[10];
 	
 	uint32_t n[11] = 
 {
@@ -59,6 +59,9 @@ int main()
 	
 	//ADC clocks
 	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;
+
+  //DAC clocks
+  RCC->APB1ENR |= RCC_APB1ENR_DACEN; 
 			
 	//GPIO LED init
 	GPIOB->MODER|=GPIO_MODER_MODER6_0|GPIO_MODER_MODER7_0; // PB7=01, PB6=01 output
@@ -69,16 +72,27 @@ int main()
 	//GPIO MCO init
 	GPIOA->MODER|=GPIO_MODER_MODER8_1; //PA8=10 AF
   GPIOA->OTYPER|=0; //push-pull 
-	GPIOA->PUPDR|=~GPIO_PUPDR_PUPDR8;// no pull
+	GPIOA->PUPDR &=~ GPIO_PUPDR_PUPDR8;// no pull
 	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR8; // High Speed 
 	GPIOA->AFR[1]|=(GPIO_AFRH_AFRH8>>4);
 	
 	//GPIO USART init
 	GPIOA->MODER|=GPIO_MODER_MODER2_1|GPIO_MODER_MODER3_1; //PA2=10, PA3=10 AF
   GPIOA->OTYPER|=0; //push-pull 
-	GPIOA->PUPDR|=~GPIO_PUPDR_PUPDR2|~GPIO_PUPDR_PUPDR3;// no pull
+	GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR2 & ~GPIO_PUPDR_PUPDR3;// no pull
 	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR2|GPIO_OSPEEDER_OSPEEDR3; // High Speed 
 	GPIOA->AFR[0]|=((GPIO_AFRL_AFRL2 & (0x00000007<<8))|(GPIO_AFRL_AFRL3 & (0x00000007<<12))); //PA2, PA3 AF7
+	
+	
+	//GPIO ADC init
+	GPIOA->MODER |=GPIO_MODER_MODER1; // analog function
+	
+	//GPIO DAC init
+	GPIOA->MODER|=GPIO_MODER_MODER4|GPIO_MODER_MODER5; //PA4, PA5 Analog Function
+  GPIOA->OTYPER|=0; //push-pull 
+	GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR4 & ~GPIO_PUPDR_PUPDR5;// no pull
+	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR4|GPIO_OSPEEDER_OSPEEDR5; // High Speed 
+	
 		
 	//USART config
 	USART2->CR1 |= USART_CR1_UE; //USART on
@@ -89,8 +103,11 @@ int main()
   USART2->CR1 |= USART_CR1_TE; // USART transmitter  on 
   USART2->CR1 |= USART_CR1_RE; //USART receiver on
 	
-	//GPIO ADC init
-	GPIOA->MODER |=GPIO_MODER_MODER1; // analog
+	//DAC config
+  DAC->CR|=DAC_CR_EN1;
+	DAC->CR|=DAC_CR_TSEL1; // 111-software trigger
+	DAC->SWTRIGR|=DAC_SWTRIGR_SWTRIG1; // software trigger enabled
+	
 	
 	//ADC config
 	ADC1->SMPR3 &= ADC_SMPR3_SMP1; //write when ADON=0
@@ -154,6 +171,11 @@ while(1)
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
 		
+		DAC->DHR12R1|=4095;
+		DAC_result = DAC->DHR12R1;
+		sscanf(DAC_buf,"%d",&DAC_result);
+		SendUSART ((uint8_t*) DAC_buf);
+		
 		/*
 		// Decomposition of number a=7964
 		a=ADC_result/1000;        //7
@@ -176,7 +198,7 @@ while(1)
     a=ADC_result%10;         //4
 		*/
 	
-	//for (i=0;i<50000;++i) {};
+	for (i=0;i<50000;++i) {};
 	
 	command = TakeUSART();
 			switch(command)
