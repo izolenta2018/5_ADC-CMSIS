@@ -1,3 +1,4 @@
+
 #include "stm32l1xx.h"
 #include <stdio.h>
 #include <string.h>
@@ -88,10 +89,10 @@ int main()
 	GPIOA->MODER |=GPIO_MODER_MODER1; // analog function
 	
 	//GPIO DAC init
-	GPIOA->MODER|=GPIO_MODER_MODER4|GPIO_MODER_MODER5; //PA4, PA5 Analog Function
-  GPIOA->OTYPER|=0; //push-pull 
-	GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR4 & ~GPIO_PUPDR_PUPDR5;// no pull
-	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR4|GPIO_OSPEEDER_OSPEEDR5; // High Speed 
+	//GPIOA->MODER|=GPIO_MODER_MODER4|GPIO_MODER_MODER5; //PA4, PA5 Analog Function
+  //GPIOA->OTYPER|=0; //push-pull 
+	//GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR4 & ~GPIO_PUPDR_PUPDR5;// no pull
+	//GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR4|GPIO_OSPEEDER_OSPEEDR5; // High Speed 
 	
 		
 	//USART config
@@ -105,8 +106,8 @@ int main()
 	
 	//DAC config
   DAC->CR|=DAC_CR_EN1;
-	DAC->CR|=DAC_CR_TSEL1; // 111-software trigger
-	DAC->SWTRIGR|=DAC_SWTRIGR_SWTRIG1; // software trigger enabled
+	//DAC->CR|=DAC_CR_TSEL1; // 111-software trigger
+	
 	
 	
 	//ADC config
@@ -161,8 +162,8 @@ while(1)
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
 		
-		sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
-		//SendUSART ((uint8_t*) txt_buf);
+		//sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
+		SendUSART ((uint8_t*) txt_buf);
 	
 		
 		if  (ADC1->SR & ADC_SR_EOC)
@@ -171,8 +172,10 @@ while(1)
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
 		
+		//DAC->SWTRIGR|=DAC_SWTRIGR_SWTRIG1; // software trigger enabled		
 		DAC->DHR12R1|=4095;
 		DAC_result = DAC->DHR12R1;
+		sprintf (DAC_buf, "\n\rКод ЦАП %d ",DAC->DOR1);
 		sscanf(DAC_buf,"%d",&DAC_result);
 		SendUSART ((uint8_t*) DAC_buf);
 		
@@ -198,7 +201,7 @@ while(1)
     a=ADC_result%10;         //4
 		*/
 	
-	for (i=0;i<50000;++i) {};
+	for (i=0;i<500000;++i) {};
 	
 	command = TakeUSART();
 			switch(command)
