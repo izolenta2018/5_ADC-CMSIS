@@ -6,6 +6,13 @@
 
 #define APBCLK   16000000UL
 #define BAUDRATE 115200UL
+#define TS_cal1 ((uint32_t*) 0x1FF800FA)
+#define TS_cal11 ((uint32_t*) 0x1FF800FB)
+#define TS_cal2 ((uint32_t*) 0x1FF800FE)
+#define TS_cal22 ((uint32_t*) 0x1FF800FF)
+
+#define Vref_int_cal1 ((uint16_t*) 0x1FF800F8)
+#define Vref_int_cal11 ((uint16_t*) 0x1FF800F9)
 
 #define led_green_on  '1'
 #define led_green_off '2'
@@ -28,10 +35,10 @@ int main()
 	
 	uint32_t ADC_value, ADC_result, a, DAC_result;
   uint8_t b=0;
-	char txt_buf[150];
-	char DAC_buf[10];
+	char txt_buf[200];
+	char DAC_buf[00];
 	
-	uint32_t n[11] = 
+	uint32_t n[10] = 
 {
   '0', //0
   '1', //1
@@ -43,8 +50,7 @@ int main()
   '7', //7   
   '8', //8
   '9',  //9  
-  'x'
-};
+  };
 	
 
 	RCC->AHBENR|=RCC_AHBENR_GPIOBEN; //LED blue and green
@@ -86,7 +92,7 @@ int main()
 	
 	
 	//GPIO ADC init
-	GPIOA->MODER |=GPIO_MODER_MODER1; // analog function
+	GPIOA->MODER |=GPIO_MODER_MODER1; // analog function ch1, PA1
 	
 	//GPIO DAC init
 	//GPIOA->MODER|=GPIO_MODER_MODER4|GPIO_MODER_MODER5; //PA4, PA5 Analog Function
@@ -110,30 +116,24 @@ int main()
 	
 	
 	
-	//ADC config
-	ADC1->SMPR3 &= ADC_SMPR3_SMP1; //write when ADON=0
-	ADC1->CR1 &= ~ADC_CR1_RES; //res 12 bit, scan mode enabled
-	//ADC1->CR1 |= ADC_CR1_SCAN; //res 12 bit, scan mode enabled
-	ADC1->CR1 &= ~ADC_CR1_SCAN; //res 12 bit, scan mode disabled
+	//ADC config, injected channel
+	ADC1->SMPR3 &= ADC_SMPR3_SMP1; //sample time 384 cycles, write when ADON=0 
+	ADC1->CR1 &= ~ADC_CR1_RES; //res 12 bit
+	ADC1->CR1 &= ~ADC_CR1_SCAN; //scan mode disabled
 	
-	ADC1->CR2 &= ~ADC_CR2_CONT; //single conv mode, right alignment, ADC on
-	//ADC1->CR2 |=ADC_CR2_CONT; //continuous conv mode, right alignment, ADC on
-	
-	ADC1->CR2 |= ADC_CR2_ADON; //single conv mode, right alignment, ADC on
-	ADC1->CR2 &= ~ADC_CR2_ALIGN; //single conv mode, right alignment, ADC on
-	
-	
+	ADC1->CR2 &= ~ADC_CR2_CONT; //single conv mode
+	ADC1->CR2 |= ADC_CR2_ADON; //ADC on
+	ADC1->CR2 &= ~ADC_CR2_ALIGN; //right alignment
 	ADC1->CR2 &= ~ADC_CR2_CFG; //bank A 
-	//ADC1->CR2 |= ADC_CR2_CFG; //bank B 
+		
+	ADC1->JSQR &= ~ADC_JSQR_JL; //1 conversion
+	ADC1->JSQR |= ADC_JSQR_JSQ4_0; //1st conversion in injected channel
 	
 	
-	ADC1->JSQR &= ~ADC_JSQR_JL; //1 conversion, 1 channel
-	ADC1->JSQR |= ADC_JSQR_JSQ4_0; //1 conversion, 1 channel
-	
-	
+	//regular channel
 	/*
-	ADC1->SQR1 &= ~ADC_SQR1_L; //1 conversion, 1 channel
-	ADC1->SQR5 |= ADC_SQR5_SQ1_0; //1 conversion, 1 channel
+	ADC1->SQR1 &= ~ADC_SQR1_L; //1 conversion
+	ADC1->SQR5 |= ADC_SQR5_SQ1_0; //1st conversion in regular channel
 	*/
 		
 		
@@ -151,55 +151,41 @@ int main()
 while(1)
 {   
 	
-	ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC
-	//ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC
-	 //for (i=0;i<500000;++i) {};
-    
+	//
+	
+	
+	ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC, inj ch
+	//ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC, reg ch
+	    
 	  
-	  if  (ADC1->SR & ADC_SR_JEOC)
+	  if  (ADC1->SR & ADC_SR_JEOC) //wait of JEOC
 		{			
 	  ADC_value = ADC1->JDR1;
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
+		sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
+		sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
 		
-		//sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
-		SendUSART ((uint8_t*) txt_buf);
-	
-		
-		if  (ADC1->SR & ADC_SR_EOC)
+	  //sprintf (txt_buf, "\n\r TS_cal1=%d TS_cal11=%d TS_cal2=%d TS_cal22=%d Vref_int_cal1=%d Vref_int_cal11=%d ",*TS_cal1, *TS_cal11, *TS_cal2, *TS_cal22, *Vref_int_cal1, *Vref_int_cal11);
+		//sprintf (txt_buf, "\n\r TS_cal1=%d TS_cal11=%d TS_cal2=%d  Vref_int_cal1=%d Vref_int_cal11=%d ",* TS_cal1, * TS_cal11, * TS_cal2,  *Vref_int_cal1, *Vref_int_cal11);
+		sprintf (txt_buf, "\n\rVref_int_cal1=%d Vref_int_cal11=%d ", *Vref_int_cal1, *Vref_int_cal11);	
+		SendUSART ((uint8_t*) txt_buf); 
+		/*
+		if  (ADC1->SR & ADC_SR_EOC) //wait of EOC
 		{			
 	  ADC_value = ADC1->DR;
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
-		
+		*/
+		for (i=0;i<5000000;++i) {};
 		//DAC->SWTRIGR|=DAC_SWTRIGR_SWTRIG1; // software trigger enabled		
-		DAC->DHR12R1|=4095;
+		DAC->DHR12R1=3095;
 		DAC_result = DAC->DHR12R1;
 		sprintf (DAC_buf, "\n\rКод ЦАП %d ",DAC->DOR1);
-		sscanf(DAC_buf,"%d",&DAC_result);
-		SendUSART ((uint8_t*) DAC_buf);
-		
-		/*
-		// Decomposition of number a=7964
-		a=ADC_result/1000;        //7
-    ADC_result%=1000;        //964
-    
-		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
-		USART2->DR =n[a];	//write data
-		
-    a=ADC_result/100;          //9
-    ADC_result%=100;          //64
-		
-		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
-		USART2->DR =n[a];	//write data
-
-    a=ADC_result/10;           //6
-		
-		while(!(USART2->SR & USART_SR_TC)); //Transmission is complete
-		USART2->DR =n[a];	//write data
-
-    a=ADC_result%10;         //4
-		*/
+		//sscanf(DAC_buf,"%d",&DAC_result);
+		//SendUSART ((uint8_t*) txt_buf);
+		//SendUSART ((uint8_t*) DAC_buf);
+	 
 	
 	for (i=0;i<500000;++i) {};
 	
@@ -226,6 +212,10 @@ while(1)
 				SendUSART ((uint8_t*) txt_buf); 
 				break;
 				case 'R':
+				SendUSART ((uint8_t*) txt_buf); 
+				break;
+				case 'z':
+				//sprintf (txt_buf, "\n\r TS_cal1=%d TS_cal11=%d TS_cal2=%d TS_cal22=%d Vref_int_cal1=%d Vref_int_cal11=%d ",* TS_cal1, * TS_cal11, * TS_cal2, * TS_cal22, *Vref_int_cal1, *Vref_int_cal11);
 				SendUSART ((uint8_t*) txt_buf); 
 				break;
 			}
