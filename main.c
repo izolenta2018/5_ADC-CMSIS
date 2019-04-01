@@ -6,12 +6,12 @@
 
 #define APBCLK   16000000UL
 #define BAUDRATE 115200UL
-#define TS_cal1 ((uint32_t*) 0x1FF800FA)
-#define TS_cal11 ((uint32_t*) 0x1FF800FB)
-#define TS_cal2 ((uint32_t*) 0x1FF800FE)
-#define TS_cal22 ((uint32_t*) 0x1FF800FF)
+#define TS_cal_30 ((uint16_t*) 0x1FF800FA)
+#define TS_cal11 ((uint16_t*) 0x1FF800FB)
+#define TS_cal_110 ((uint16_t*) 0x1FF800FE)
+#define TS_cal22 ((uint16_t*) 0x1FF800FF)
 
-#define Vref_int_cal1 ((uint16_t*) 0x1FF800F8)
+#define Vref_int_cal ((uint16_t*) 0x1FF800F8)
 #define Vref_int_cal11 ((uint16_t*) 0x1FF800F9)
 
 #define led_green_on  '1'
@@ -164,30 +164,17 @@ while(1)
 	  ADC_result = (ADC_value * 3000)/4095;
 	  }
 		sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
-		sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
 		
-	  //sprintf (txt_buf, "\n\r TS_cal1=%d TS_cal11=%d TS_cal2=%d TS_cal22=%d Vref_int_cal1=%d Vref_int_cal11=%d ",*TS_cal1, *TS_cal11, *TS_cal2, *TS_cal22, *Vref_int_cal1, *Vref_int_cal11);
-		//sprintf (txt_buf, "\n\r TS_cal1=%d TS_cal11=%d TS_cal2=%d  Vref_int_cal1=%d Vref_int_cal11=%d ",* TS_cal1, * TS_cal11, * TS_cal2,  *Vref_int_cal1, *Vref_int_cal11);
-		sprintf (txt_buf, "\n\rVref_int_cal1=%d Vref_int_cal11=%d ", *Vref_int_cal1, *Vref_int_cal11);	
-		SendUSART ((uint8_t*) txt_buf); 
-		/*
-		if  (ADC1->SR & ADC_SR_EOC) //wait of EOC
-		{			
-	  ADC_value = ADC1->DR;
-	  ADC_result = (ADC_value * 3000)/4095;
-	  }
-		*/
-		for (i=0;i<5000000;++i) {};
+		
+	 
+		
 		//DAC->SWTRIGR|=DAC_SWTRIGR_SWTRIG1; // software trigger enabled		
 		DAC->DHR12R1=3095;
 		DAC_result = DAC->DHR12R1;
 		sprintf (DAC_buf, "\n\rКод ЦАП %d ",DAC->DOR1);
-		//sscanf(DAC_buf,"%d",&DAC_result);
-		//SendUSART ((uint8_t*) txt_buf);
-		//SendUSART ((uint8_t*) DAC_buf);
-	 
+		
 	
-	for (i=0;i<500000;++i) {};
+	for (i=0;i<50000;++i) {};
 	
 	command = TakeUSART();
 			switch(command)
@@ -215,7 +202,11 @@ while(1)
 				SendUSART ((uint8_t*) txt_buf); 
 				break;
 				case 'z':
-				//sprintf (txt_buf, "\n\r TS_cal1=%d TS_cal11=%d TS_cal2=%d TS_cal22=%d Vref_int_cal1=%d Vref_int_cal11=%d ",* TS_cal1, * TS_cal11, * TS_cal2, * TS_cal22, *Vref_int_cal1, *Vref_int_cal11);
+        sprintf (txt_buf, "\n\rVref_int_cal=%d \n\rTS_cal_30=%d \n\rTS_cal_110=%d ", *Vref_int_cal, *TS_cal_30, *TS_cal_110);	
+				SendUSART ((uint8_t*) txt_buf); 
+				break;
+				case 'x':
+        
 				SendUSART ((uint8_t*) txt_buf); 
 				break;
 			}
