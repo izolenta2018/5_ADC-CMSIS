@@ -2,22 +2,23 @@
 #include "stm32l1xx.h"
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
+ 
+
+
 
 #define APBCLK   16000000UL
 #define BAUDRATE 115200UL
+
 #define TS_cal_30 ((uint16_t*) 0x1FF800FA)
-#define TS_cal11 ((uint16_t*) 0x1FF800FB)
 #define TS_cal_110 ((uint16_t*) 0x1FF800FE)
-#define TS_cal22 ((uint16_t*) 0x1FF800FF)
-
 #define Vref_int_cal ((uint16_t*) 0x1FF800F8)
-#define Vref_int_cal11 ((uint16_t*) 0x1FF800F9)
 
-#define led_green_on  '1'
-#define led_green_off '2'
-#define led_blue_on   '3'
-#define led_blue_off  '4'
+#define Enter 13 //ascii-код Enter
+
+#define led_green_on  'q'
+#define led_green_off 'w'
+#define led_blue_on   'e'
+#define led_blue_off  'r'
 
 
 void SendUSART (uint8_t *text);
@@ -33,24 +34,12 @@ int main()
 	uint8_t command;
 	
 	
-	uint32_t ADC_value, ADC_result, a, DAC_result;
+	uint16_t  ADC_result, TS_result, Vdda, a, DAC_result;
+	uint16_t ADC_data, TS_data, Vrefint_data;
   uint8_t b=0;
 	char txt_buf[200];
 	char DAC_buf[00];
-	
-	uint32_t n[10] = 
-{
-  '0', //0
-  '1', //1
-  '2', //2
-  '3', //3   
-  '4', //4
-  '5', //5 
-  '6', //6
-  '7', //7   
-  '8', //8
-  '9',  //9  
-  };
+
 	
 
 	RCC->AHBENR|=RCC_AHBENR_GPIOBEN; //LED blue and green
@@ -89,11 +78,11 @@ int main()
 	GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR2 & ~GPIO_PUPDR_PUPDR3;// no pull
 	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR2|GPIO_OSPEEDER_OSPEEDR3; // High Speed 
 	GPIOA->AFR[0]|=((GPIO_AFRL_AFRL2 & (0x00000007<<8))|(GPIO_AFRL_AFRL3 & (0x00000007<<12))); //PA2, PA3 AF7
-	
-	
+		
 	//GPIO ADC init
 	GPIOA->MODER |=GPIO_MODER_MODER1; // analog function ch1, PA1
 	
+		
 	//GPIO DAC init
 	//GPIOA->MODER|=GPIO_MODER_MODER4|GPIO_MODER_MODER5; //PA4, PA5 Analog Function
   //GPIOA->OTYPER|=0; //push-pull 
@@ -111,31 +100,32 @@ int main()
   USART2->CR1 |= USART_CR1_RE; //USART receiver on
 	
 	//DAC config
-  DAC->CR|=DAC_CR_EN1;
+  DAC->CR|=DAC_CR_EN2;
 	//DAC->CR|=DAC_CR_TSEL1; // 111-software trigger
 	
 	
 	
-	//ADC config, injected channel
-	ADC1->SMPR3 &= ADC_SMPR3_SMP1; //sample time 384 cycles, write when ADON=0 
-	ADC1->CR1 &= ~ADC_CR1_RES; //res 12 bit
-	ADC1->CR1 &= ~ADC_CR1_SCAN; //scan mode disabled
+	//ADC config, injected channel ch1
 	
+	ADC1->CR1 &= ~ADC_CR1_RES; //res 12 bit
+	ADC1->CR1 = ADC_CR1_SCAN; //scan mode enabled
 	ADC1->CR2 &= ~ADC_CR2_CONT; //single conv mode
-	ADC1->CR2 |= ADC_CR2_ADON; //ADC on
 	ADC1->CR2 &= ~ADC_CR2_ALIGN; //right alignment
 	ADC1->CR2 &= ~ADC_CR2_CFG; //bank A 
 		
-	ADC1->JSQR &= ~ADC_JSQR_JL; //1 conversion
-	ADC1->JSQR |= ADC_JSQR_JSQ4_0; //1st conversion in injected channel
+	ADC1->JSQR |= ADC_JSQR_JL_1; //3 conversions
+	ADC1->JSQR |= ADC_JSQR_JSQ2_0|ADC_JSQR_JSQ2_4; //1st conversion in injected channel PA17(Vrefint)
+	ADC1->JSQR |= ADC_JSQR_JSQ3_4; //2nd conversion in injected channel PA16(Tsensor) 
+	ADC1->JSQR |= ADC_JSQR_JSQ4_0; //3rd conversion in injected channel PA1
+	
+  ADC1->SMPR3 |= ADC_SMPR3_SMP1; //sample time 384 cycles ch1=PA1, write when ADON=0 	
+	ADC1->SMPR2 |= ADC_SMPR2_SMP17 ; //sample time 384 cycles, ch17 (write when ADON=0)
+	ADC1->SMPR2 |= ADC_SMPR2_SMP16 ; //sample time 384 cycles, ch16 (write when ADON=0)
 	
 	
-	//regular channel
-	/*
-	ADC1->SQR1 &= ~ADC_SQR1_L; //1 conversion
-	ADC1->SQR5 |= ADC_SQR5_SQ1_0; //1st conversion in regular channel
-	*/
-		
+	ADC->CCR |=ADC_CCR_TSVREFE; //Temperature Sensor and VREFINT Enable 
+	ADC1->CR2 |= ADC_CR2_ADON; //ADC on
+	
 		
   	// \n - переместить курсор на строку вниз 
 		// \r - переместить курсор в крайнее левое положение
@@ -147,66 +137,75 @@ int main()
 		SendUSART((uint8_t *)"|                             | \n\r");
     SendUSART((uint8_t *)"|STM32l152RCT6 ready for work | \n\r");
 		SendUSART((uint8_t *)"|_____________________________| \n\r");
-    SendUSART((uint8_t *)"Чтобы обновить напряжение на PA1 нажмите R \n\r");
+    SendUSART((uint8_t *)"<Каллибровочные константы> нажмите z \n\r<Показания с каналов АЦП> нажмите x\n\r");
+    SendUSART((uint8_t *)"<Помигать светодиодами> понажмайте q,w,e,r\n\r");
+
 while(1)
-{   
+{ 
 	
-	//
-	
-	
-	ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC, inj ch
-	//ADC1->CR2 |= ADC_CR2_SWSTART; //start ADC, reg ch
-	    
-	  
+	  ADC1->CR2 |= ADC_CR2_JSWSTART; //start ADC, inj ch
+	     
 	  if  (ADC1->SR & ADC_SR_JEOC) //wait of JEOC
 		{			
-	  ADC_value = ADC1->JDR1;
-	  ADC_result = (ADC_value * 3000)/4095;
-	  }
-		sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
+	  Vrefint_data = ADC1->JDR1;
+	  Vdda = ((*Vref_int_cal) * 3000)/Vrefint_data;
+	  }	
 		
-		
+	  if  (ADC1->SR & ADC_SR_JEOC) //wait of JEOC
+		{			
+	  TS_data = ADC1->JDR2;
+		TS_result = 80*(TS_data-(*TS_cal_30))/((*TS_cal_110)-(*TS_cal_30))+30; //!!! поставить перед 80 int, поменять местами дата и кал1
+	  }				
+			
+	  if  (ADC1->SR & ADC_SR_JEOC) //wait of JEOC
+		{			
+	  ADC_data = ADC1->JDR3;
+	  ADC_result = (Vdda*ADC_data)/4095;
+	  }		
 	 
-		
-		//DAC->SWTRIGR|=DAC_SWTRIGR_SWTRIG1; // software trigger enabled		
-		DAC->DHR12R1=3095;
+		DAC->DHR12R1=4095;
 		DAC_result = DAC->DHR12R1;
 		sprintf (DAC_buf, "\n\rКод ЦАП %d ",DAC->DOR1);
 		
-	
-	for (i=0;i<50000;++i) {};
 	
 	command = TakeUSART();
 			switch(command)
 			{
 				case led_green_on:
 				  LED_GREEN_ON();
-				  SendUSART((uint8_t *)"Led green ON \n\r");
+				  SendUSART((uint8_t *)"\n\rLed green ON");
 				break;
 				case led_green_off:
 					LED_GREEN_OFF();
-				  SendUSART((uint8_t *)"Led green OFF \n\r");
+				  SendUSART((uint8_t *)"\n\rLed green OFF");
 				break;
 				case led_blue_on:
 					LED_BLUE_ON();
-				  SendUSART((uint8_t *)"Led blue ON \n\r");
+				  SendUSART((uint8_t *)"\n\rLed blue ON");
 				break;
 				case led_blue_off:
 					LED_BLUE_OFF();
-				  SendUSART((uint8_t *)"Led blue OFF \n\r");	
-				break;
-				case 'r':
-				SendUSART ((uint8_t*) txt_buf); 
-				break;
-				case 'R':
-				SendUSART ((uint8_t*) txt_buf); 
+				  SendUSART((uint8_t *)"\n\rLed blue OFF");	
 				break;
 				case 'z':
-        sprintf (txt_buf, "\n\rVref_int_cal=%d \n\rTS_cal_30=%d \n\rTS_cal_110=%d ", *Vref_int_cal, *TS_cal_30, *TS_cal_110);	
-				SendUSART ((uint8_t*) txt_buf); 
+				SendUSART((uint8_t *)"\n\r___Каллибровочные константы___");	
+				sprintf (txt_buf, "\n\rTS_cal_30=%d \n\rTS_cal_110=%d \n\rVref_int_cal=%d",*TS_cal_30, *TS_cal_110, *Vref_int_cal);	
+				SendUSART((uint8_t *)txt_buf);	
 				break;
 				case 'x':
-        
+				SendUSART((uint8_t *)"\n\r___Коды каналов АЦП___");		
+				sprintf (txt_buf, "\n\rADC_data=%d",ADC_data);
+				SendUSART ((uint8_t*) txt_buf);	
+				sprintf (txt_buf, "\n\rTS_data=%d",TS_data);
+				SendUSART ((uint8_t*) txt_buf);	
+				sprintf (txt_buf, "\n\rVrefint_data=%d",Vrefint_data);
+				SendUSART ((uint8_t*) txt_buf); 
+        SendUSART((uint8_t *)"\n\r___Показания с каналов АЦП___");					
+        sprintf (txt_buf, "\n\rТекущее аналоговое напряжение АЦП Vdda=%d мВ",Vdda);
+				SendUSART ((uint8_t*) txt_buf); 
+				sprintf (txt_buf, "\n\rТемпература на кристалле TS=%d град.",TS_result);
+				SendUSART ((uint8_t*) txt_buf); 
+				sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
 				SendUSART ((uint8_t*) txt_buf); 
 				break;
 			}
