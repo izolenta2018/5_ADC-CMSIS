@@ -35,10 +35,10 @@ int main()
 	
 	
 	uint16_t  ADC_result, TS_result, Vdda, a, DAC_result;
-	uint16_t ADC_data, TS_data, Vrefint_data;
-  uint8_t b=0;
+	uint16_t ADC_data, TS_data, Vrefint_data, b=0;
+  
 	char txt_buf[200];
-	char DAC_buf[00];
+	char DAC_buf[10];
 
 	
 
@@ -137,8 +137,9 @@ int main()
 		SendUSART((uint8_t *)"|                             | \n\r");
     SendUSART((uint8_t *)"|STM32l152RCT6 ready for work | \n\r");
 		SendUSART((uint8_t *)"|_____________________________| \n\r");
+		for (i=0;i<200000;++i) {};	
     SendUSART((uint8_t *)"<Каллибровочные константы> нажмите z \n\r<Показания с каналов АЦП> нажмите x\n\r");
-    SendUSART((uint8_t *)"<Помигать светодиодами> понажмайте q,w,e,r\n\r");
+    SendUSART((uint8_t *)"<Помигать светодиодами> понажимайте q,w,e,r\n\r");
 
 while(1)
 { 
@@ -154,7 +155,7 @@ while(1)
 	  if  (ADC1->SR & ADC_SR_JEOC) //wait of JEOC
 		{			
 	  TS_data = ADC1->JDR2;
-		TS_result = 80*(TS_data-(*TS_cal_30))/((*TS_cal_110)-(*TS_cal_30))+30; //!!! поставить перед 80 int, поменять местами дата и кал1
+		TS_result = 80*(TS_data-(*TS_cal_30))/((*TS_cal_110)-(*TS_cal_30))+30; 
 	  }				
 			
 	  if  (ADC1->SR & ADC_SR_JEOC) //wait of JEOC
@@ -209,11 +210,21 @@ while(1)
 				SendUSART ((uint8_t*) txt_buf); 
 				break;
 			}
-
-}		
+  
+			
+			if (b==0) 	SendUSART ((uint8_t*) "\n\rВведите желаемое напряжение от 0 до 3000 мВ и нажмите Enter");		
+				
+			if (USART2->SR & USART_SR_RXNE) //Received data is ready to be read
+		{			
+			DAC_buf[b]= USART2->DR; //read data
+      ++b;		
+		}
+			
+			
 	
-}
+}//end while(1)
 
+} //end main
 
 void SendUSART (uint8_t *text)
 {
