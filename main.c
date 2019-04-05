@@ -13,7 +13,7 @@
 #define TS_cal_110 ((uint16_t*) 0x1FF800FE)
 #define Vref_int_cal ((uint16_t*) 0x1FF800F8)
 
-#define Enter 13 //ascii-код Enter
+#define Enter 0x0D //ascii-код Enter
 
 #define led_green_on  'q'
 #define led_green_off 'w'
@@ -30,7 +30,7 @@ void LED_BLUE_OFF  (void);
 
 int main()
 {
-	uint32_t i, temp;
+	uint32_t i, temp, voltage;
 	uint8_t command;
 	
 	
@@ -100,7 +100,7 @@ int main()
   USART2->CR1 |= USART_CR1_RE; //USART receiver on
 	
 	//DAC config
-  DAC->CR|=DAC_CR_EN2;
+  DAC->CR|=DAC_CR_EN1;
 	//DAC->CR|=DAC_CR_TSEL1; // 111-software trigger
 	
 	
@@ -140,6 +140,7 @@ int main()
 		for (i=0;i<200000;++i) {};	
     SendUSART((uint8_t *)"<Каллибровочные константы> нажмите z \n\r<Показания с каналов АЦП> нажмите x\n\r");
     SendUSART((uint8_t *)"<Помигать светодиодами> понажимайте q,w,e,r\n\r");
+			SendUSART ((uint8_t*) "\n\rВведите желаемое напряжение от 0 до 3000 мВ и нажмите Enter");	
 
 while(1)
 { 
@@ -164,9 +165,9 @@ while(1)
 	  ADC_result = (Vdda*ADC_data)/4095;
 	  }		
 	 
-		DAC->DHR12R1=4095;
-		DAC_result = DAC->DHR12R1;
-		sprintf (DAC_buf, "\n\rКод ЦАП %d ",DAC->DOR1);
+		//DAC->DHR12R1=4095;
+		//DAC_result = DAC->DHR12R1;
+		//sprintf (DAC_buf, "\n\rКод ЦАП %d ",DAC->DOR1);
 		
 	
 	command = TakeUSART();
@@ -211,15 +212,45 @@ while(1)
 				break;
 			}
   
+	if (command>='0'&& command<='9'|| command==Enter)
+	{	
+		
 			
-			if (b==0) 	SendUSART ((uint8_t*) "\n\rВведите желаемое напряжение от 0 до 3000 мВ и нажмите Enter");		
-				
+		 DAC_buf[b]=command; //запись в массив цифры
+		  
+		 sprintf (txt_buf, "%d",command); //вывод введеной цифры
+		 SendUSART ((uint8_t*) txt_buf);	//вывод введеной цифры 
+     ++b;
+		
+		if (b>=4) //проверка инкремента массива
+		 {
+			 SendUSART((uint8_t *)"\n\rнедопустимый ввод, введите заново");
+       b=0;
+		 }		
+
+		/*
 			if (USART2->SR & USART_SR_RXNE) //Received data is ready to be read
-		{			
+			{
+			sprintf (txt_buf, "%d",command);
+			SendUSART ((uint8_t*) txt_buf);	 
 			DAC_buf[b]= USART2->DR; //read data
-      ++b;		
-		}
+     */ 
 			
+			
+     if (command == Enter)	
+     {
+			//ЦАП-преобразование// 
+     sscanf (DAC_buf,"%d",&voltage); 
+		 DAC->DHR12R1=voltage*4095/Vdda;
+     sprintf (txt_buf, "\n\rКод ЦАП %d",DAC->DOR1);
+ 		 SendUSART ((uint8_t*) txt_buf); 
+      //////////////////////			 
+     } 			 
+			
+	}
+			
+	  
+			for (i=0;i<200000;++i) {}; 
 			
 	
 }//end while(1)
@@ -246,6 +277,12 @@ uint8_t TakeUSART (void)
 		}
 		
 		return data;
+}
+
+uint8_t TakeUSART_wait (void)
+{
+	while (!(USART2->SR & USART_SR_RXNE)) {}; //Received data is ready to be read
+	return (USART2->DR); //read data
 }
 
 void LED_GREEN_ON (void)
