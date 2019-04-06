@@ -31,11 +31,11 @@ void LED_BLUE_OFF  (void);
 int main()
 {
 	uint32_t i, temp, voltage;
-	uint8_t command;
+	uint8_t command,  b=0;
 	
 	
 	uint16_t  ADC_result, TS_result, Vdda, a, DAC_result;
-	uint16_t ADC_data, TS_data, Vrefint_data, b=0;
+	uint16_t ADC_data, TS_data, Vrefint_data;
   
 	char txt_buf[200];
 	char DAC_buf[10];
@@ -84,10 +84,10 @@ int main()
 	
 		
 	//GPIO DAC init
-	//GPIOA->MODER|=GPIO_MODER_MODER4|GPIO_MODER_MODER5; //PA4, PA5 Analog Function
-  //GPIOA->OTYPER|=0; //push-pull 
-	//GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR4 & ~GPIO_PUPDR_PUPDR5;// no pull
-	//GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR4|GPIO_OSPEEDER_OSPEEDR5; // High Speed 
+	GPIOA->MODER|=GPIO_MODER_MODER4|GPIO_MODER_MODER5; //PA4, PA5 Analog Function
+  GPIOA->OTYPER|=0; //push-pull 
+	GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR4 & ~GPIO_PUPDR_PUPDR5;// no pull
+	GPIOA->OSPEEDR|=GPIO_OSPEEDER_OSPEEDR4|GPIO_OSPEEDER_OSPEEDR5; // High Speed 
 	
 		
 	//USART config
@@ -139,8 +139,9 @@ int main()
 		SendUSART((uint8_t *)"|_____________________________| \n\r");
 		for (i=0;i<200000;++i) {};	
     SendUSART((uint8_t *)"<Каллибровочные константы> нажмите z \n\r<Показания с каналов АЦП> нажмите x\n\r");
-    SendUSART((uint8_t *)"<Помигать светодиодами> понажимайте q,w,e,r\n\r");
-			SendUSART ((uint8_t*) "\n\rВведите желаемое напряжение от 0 до 3000 мВ и нажмите Enter");	
+		SendUSART((uint8_t *)"<Помигать светодиодами> понажимайте q,w,e,r\n\r");
+		for (i=0;i<200000;++i) {};		
+		SendUSART ((uint8_t*) "\n\rВведите желаемое напряжение от 0 до 3000 мВ и нажмите Enter ");	
 
 while(1)
 { 
@@ -165,9 +166,6 @@ while(1)
 	  ADC_result = (Vdda*ADC_data)/4095;
 	  }		
 	 
-		//DAC->DHR12R1=4095;
-		//DAC_result = DAC->DHR12R1;
-		//sprintf (DAC_buf, "\n\rКод ЦАП %d ",DAC->DOR1);
 		
 	
 	command = TakeUSART();
@@ -193,6 +191,7 @@ while(1)
 				SendUSART((uint8_t *)"\n\r___Каллибровочные константы___");	
 				sprintf (txt_buf, "\n\rTS_cal_30=%d \n\rTS_cal_110=%d \n\rVref_int_cal=%d",*TS_cal_30, *TS_cal_110, *Vref_int_cal);	
 				SendUSART((uint8_t *)txt_buf);	
+				SendUSART ((uint8_t*) "\n\rВведите желаемое напряжение от 0 до 3000 мВ и нажмите Enter ");	
 				break;
 				case 'x':
 				SendUSART((uint8_t *)"\n\r___Коды каналов АЦП___");		
@@ -209,48 +208,42 @@ while(1)
 				SendUSART ((uint8_t*) txt_buf); 
 				sprintf (txt_buf, "\n\rНапряжение на АЦП U=%d мВ",ADC_result);
 				SendUSART ((uint8_t*) txt_buf); 
+				SendUSART ((uint8_t*) "\n\rВведите желаемое напряжение от 0 до 3000 мВ и нажмите Enter ");	
 				break;
 			}
   
-	if (command>='0'&& command<='9'|| command==Enter)
-	{	
-		
-			
+	if (command>='0' && command<='9'|| command==Enter)
+	  {				
 		 DAC_buf[b]=command; //запись в массив цифры
-		  
-		 sprintf (txt_buf, "%d",command); //вывод введеной цифры
+		 sprintf (txt_buf, "%c",command); //вывод введеной цифры
 		 SendUSART ((uint8_t*) txt_buf);	//вывод введеной цифры 
      ++b;
+				
 		
-		if (b>=4) //проверка инкремента массива
+		 if (b>4 && command!=Enter) //проверка инкремента массива
 		 {
-			 SendUSART((uint8_t *)"\n\rнедопустимый ввод, введите заново");
+			 SendUSART((uint8_t *)"\n\rнедопустимый ввод, введите заново\n\r ");
        b=0;
 		 }		
 
-		/*
-			if (USART2->SR & USART_SR_RXNE) //Received data is ready to be read
-			{
-			sprintf (txt_buf, "%d",command);
-			SendUSART ((uint8_t*) txt_buf);	 
-			DAC_buf[b]= USART2->DR; //read data
-     */ 
-			
-			
+		 
      if (command == Enter)	
      {
-			//ЦАП-преобразование// 
+			//DAC-ADC conversion 
      sscanf (DAC_buf,"%d",&voltage); 
 		 DAC->DHR12R1=voltage*4095/Vdda;
+			 
      sprintf (txt_buf, "\n\rКод ЦАП %d",DAC->DOR1);
- 		 SendUSART ((uint8_t*) txt_buf); 
-      //////////////////////			 
+		 SendUSART ((uint8_t*) txt_buf);  
+			 
+		 SendUSART ((uint8_t*) "\n\rВведите желаемое напряжение   и нажмите Enter ");	 
+		 b=0;      		 
      } 			 
 			
 	}
 			
 	  
-			for (i=0;i<200000;++i) {}; 
+		//	for (i=0;i<200000;++i) {}; 
 			
 	
 }//end while(1)
